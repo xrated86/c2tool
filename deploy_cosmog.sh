@@ -17,13 +17,15 @@ for cmd in adb unzip curl; do
 done
 
 # === TIJDELIJKE MAP AANMAKEN ===
-TMPDIR=$(mktemp -d)
+TMPDIR="/root/cosmog/tmp"
+rm -rf "$TMPDIR"
+mkdir -p "$TMPDIR"
 echo "📁 Temporary directory created: $TMPDIR"
 
 # === ZIP DOWNLOADEN EN UITPAKKEN ===
 curl -sL "$ZIP_URL" -o "$TMPDIR/cosmog.zip"
 unzip -q "$TMPDIR/cosmog.zip" -d "$TMPDIR/cosmog"
-EXTRACTED_DIR=$(find "$TMPDIR/cosmog" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+EXTRACTED_DIR="$TMPDIR/cosmog"
 echo "📦 Contents extracted to $EXTRACTED_DIR"
 
 # === OPHALEN VAN ADB-DEVICES OP localhost ===
@@ -70,29 +72,42 @@ compress = true
 
 [tuning]
 worker_spawn_delay_ms = $WORKER_SPAWN_DELAY_MS
+
+[advanced]
+dns_server = "1.1.1.1:53"
 EOF
 
     echo "📝 config.toml generated for $DEVICE_NAME"
 
-    # App verwijderen
-    adb -s "$DEVICE" shell pm uninstall com.nianticlabs.pokemongo.ares
-
-    # Proces stoppen als het al draait (robuustere aanpak)
-    PID=$(adb -s "$DEVICE" shell pidof com.nianticlabs.pokemongo | tr -d '\r')
-    if [[ -n "$PID" ]]; then
-        echo "⛔ Process ID $PID found on $DEVICE, stopping..."
-        adb -s "$DEVICE" shell kill "$PID"
+    # App verwijderen indien geïnstalleerd
+    if adb -s "$DEVICE" shell pm list packages | grep -q "com.nianticlabs.pokemongo.ares"; then
+        echo "🗑️ Uninstalling com.nianticlabs.pokemongo.ares from $DEVICE"
+        adb -s "$DEVICE" shell pm uninstall com.nianticlabs.pokemongo.ares
+    else
+        echo "ℹ️ com.nianticlabs.pokemongo.ares not installed on $DEVICE"
     fi
 
-    # Verwijder oude bestanden
-    echo "🧹 Removing old files on $DEVICE..."
-    adb -s "$DEVICE" shell rm -rf /data/local/tmp/com.nianticlabs.pokemongo
-    adb -s "$DEVICE" shell rm -rf /data/local/tmp/config.toml
-    adb -s "$DEVICE" shell rm -rf /data/local/tmp/assets
-    adb -s "$DEVICE" shell rm -rf /data/local/tmp/lib || true
+    # Draaiend proces volledig stoppen vóór nieuwe uitvoering
+    while true; do
+        PID=$(adb -s "$DEVICE" shell pidof com.nianticlabs.pokemongo | tr -d '\r')
+        if [[ -n "$PID" ]]; then
+            echo "⛔ Killing process $PID on $DEVICE..."
+            adb -s "$DEVICE" shell kill "$PID"
+            sleep 1
+        else
+            echo "✅ No running instance of com.nianticlabs.pokemongo on $DEVICE"
+            break
+        fi
+    done
+
+    # Verwijder oude bestanden en maak schoon
+    echo "🧹 Cleaning /data/local/tmp on $DEVICE..."
+    adb -s "$DEVICE" shell rm -rf /data/local/tmp/*
 
     # Nieuwe bestanden pushen
-    adb -s "$DEVICE" push "$EXTRACTED_DIR/." /data/local/tmp/
+    echo "📤 Pushing new files to $DEVICE..."
+    adb -s "$DEVICE" push "$EXTRACTED_DIR/com.nianticlabs.pokemongo" /data/local/tmp/
+    adb -s "$DEVICE" push "$EXTRACTED_DIR/lib" /data/local/tmp/
     adb -s "$DEVICE" push "$CONFIG_FILE" /data/local/tmp/config.toml
 
     # Uitvoerbaar maken en starten
@@ -102,5 +117,6 @@ EOF
     echo "✅ Cosmog started on $DEVICE"
 done
 
+echo "🧽 Cleaning up $TMPDIR"
 rm -rf "$TMPDIR"
 echo "🎉 All Redroid instances have been processed."
