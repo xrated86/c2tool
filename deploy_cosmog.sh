@@ -2,7 +2,7 @@
 
 CONFIG_FILE_HOST="./deploy_cosmog.toml"
 if [[ ! -f "$CONFIG_FILE_HOST" ]]; then
-    echo "❌ Configuratiebestand $CONFIG_FILE_HOST niet gevonden."
+    echo "❌ Configuration file $CONFIG_FILE_HOST not found."
     exit 1
 fi
 
@@ -11,7 +11,7 @@ source <(grep = "$CONFIG_FILE_HOST" | sed 's/ *= */=/g' | sed 's/^/export /')
 # === CONTROLEER OF ADB EN UNZIP AANWEZIG ZIJN ===
 for cmd in adb unzip curl; do
     if ! command -v $cmd &> /dev/null; then
-        echo "❌ Vereist commando ontbreekt: $cmd"
+        echo "❌ Required command missing: $cmd"
         exit 1
     fi
 done
