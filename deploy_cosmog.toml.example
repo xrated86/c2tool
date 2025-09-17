@@ -6,3 +6,10 @@ KLEFKI_TOKEN=""
 ZIP_URL="URL_WHERE_TO_DOWNLOAD/cosmog.zip"
 DEVICE_NAME=""
 WORKER_SPAWN_DELAY_MS=100
+REDROID_DIR="/root/cosmog"
+DEVICES=(
+  "localhost:5555"
+  "localhost:5556"
+  "localhost:5557"
+  "localhost:5558"
+)

@@ -17,7 +17,7 @@ for cmd in adb unzip curl; do
 done
 
 # === TIJDELIJKE MAP AANMAKEN ===
-TMPDIR="/root/cosmog/tmp"
+TMPDIR="$REDROID_DIR/tmp"
 rm -rf "$TMPDIR"
 mkdir -p "$TMPDIR"
 echo "📁 Temporary directory created: $TMPDIR"
@@ -39,6 +39,17 @@ fi
 echo "✅ Devices found: $DEVICES"
 
 BASE_DEVICE_NAME="$DEVICE_NAME"
+
+echo "⏸️ Stopping all pm2 processes..."
+pm2 stop all
+
+# Wacht totdat alles echt gestopt is
+while pm2 list | grep -q "online"; do
+    echo "⏳ Waiting for pm2 processes to stop..."
+    sleep 1
+done
+
+echo "🛑 All pm2 processes stopped."
 
 # === PER DEVICE ACTIES ===
 for DEVICE in $DEVICES; do
@@ -120,3 +131,6 @@ done
 echo "🧽 Cleaning up $TMPDIR"
 rm -rf "$TMPDIR"
 echo "🎉 All Redroid instances have been processed."
+echo "▶️ Starting all pm2 processes again..."
+pm2 start all
+echo "✅ pm2 processes restarted."
